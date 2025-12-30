@@ -62,10 +62,11 @@ app.post("/webhook-retell", async (req, res) => {
       const fromNumber = call.from_number;
       const summary = call.call_analysis?.call_summary || "Brak podsumowania";
       const receiverType = call.call_analysis?.custom_analysis_data?.receiver_type;
+      const recordingLink = call.recording_url
 
       // 3. Wysyłka wiadomości, jeśli znaleziono odbiorcę
       if (SPECIFIC_RECIPIENT_IDS[receiverType]) {
-        const messageBody = `Numer telefonu: ${fromNumber}, Docelowy odbiorca: ${RECIPIENT_TYPES[receiverType]} \nWiadomość: ${summary}`;
+        const messageBody = `Numer telefonu: ${fromNumber}, Docelowy odbiorca: ${RECIPIENT_TYPES[receiverType]} \nWiadomość: ${summary}\n\nNagranie głosowe: ${call.recording_url}`;
         const facebookApiUrl = `https://graph.facebook.com/${FB_API_VERSION}/${FB_PAGE_ID}/messages`;
 
         await axios.post(facebookApiUrl, extracted(RECIPIENT_IDS[receiverType], messageBody));

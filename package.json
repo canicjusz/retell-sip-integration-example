@@ -11,6 +11,7 @@
   "license": "MIT",
   "dependencies": {
     "@jambonz/node-client-ws": "^0.1.57",
+    "axios": "^1.13.2",
     "express": "^4.21.1",
     "google-libphonenumber": "^3.2.40",
     "pino": "^9.5.0",

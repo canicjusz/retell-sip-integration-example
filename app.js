@@ -28,6 +28,27 @@ const {
   MANAGER_ID,
   RECEPTION_ID
 } = process.env;
+const RECIPIENT_TYPES = {
+  event_manager: "Event Manager",
+  recepcja: "Recepcja"
+}
+const RECIPIENT_IDS = {
+  event_manager: MANAGER_ID,
+  recepcja: RECEPTION_ID
+}
+const SPECIFIC_RECIPIENT_IDS = {
+  recepcja: RECEPTION_ID
+}
+
+function extracted(recipientId, messageBody) {
+  return {
+    recipient: {id: recipientId},
+    messaging_type: "MESSAGE_TAG", // lub 'RESPONSE' w zależności od okna 24h
+    tag: "ACCOUNT_UPDATE",
+    message: {text: messageBody},
+    access_token: FB_ACCESS_TOKEN,
+  };
+}
 
 app.post("/webhook-retell", async (req, res) => {
   const { event, call } = req.body;
@@ -35,33 +56,23 @@ app.post("/webhook-retell", async (req, res) => {
   // Szybka odpowiedź dla Retell (acknowledge), aby nie ponawiał requestu
   res.status(204).send();
 
-  if (event === "call_analyzed") {
+  if (event === "call_analyzed" && call.from_number) {
     try {
       // 1. Ekstrakcja danych
       const fromNumber = call.from_number;
       const summary = call.call_analysis?.call_summary || "Brak podsumowania";
       const receiverType = call.call_analysis?.custom_analysis_data?.receiver_type;
 
-      // 2. Wybór odbiorcy na podstawie receiver_type
-      let recipientId = null;
-      if (receiverType === "event_manager") {
-        recipientId = MANAGER_ID;
-      } else if (receiverType === "recepcja") {
-        recipientId = RECEPTION_ID;
-      }
-
       // 3. Wysyłka wiadomości, jeśli znaleziono odbiorcę
-      if (recipientId) {
-        const messageBody = `Numer telefonu: ${fromNumber},\nWiadomość: ${summary}`;
+      if (SPECIFIC_RECIPIENT_IDS[receiverType]) {
+        const messageBody = `Numer telefonu: ${fromNumber}, Docelowy odbiorca: ${RECIPIENT_TYPES[receiverType]} \nWiadomość: ${summary}`;
         const facebookApiUrl = `https://graph.facebook.com/${FB_API_VERSION}/${FB_PAGE_ID}/messages`;
 
-        await axios.post(facebookApiUrl, {
-          recipient: { id: recipientId },
-          messaging_type: "MESSAGE_TAG", // lub 'RESPONSE' w zależności od okna 24h
-          tag: "ACCOUNT_UPDATE",
-          message: { text: messageBody },
-          access_token: FB_ACCESS_TOKEN,
-        });
+        await axios.post(facebookApiUrl, extracted(RECIPIENT_IDS[receiverType], messageBody));
+
+        if(!receiverType !== "event_manager") {
+          await axios.post(facebookApiUrl, extracted(RECIPIENT_IDS["event_manager"], messageBody));
+        }
 
         console.log(`[SUCCESS] Wysłano wiadomość do: ${receiverType}`);
       } else {
